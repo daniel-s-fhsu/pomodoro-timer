@@ -1,0 +1,7 @@
+#timer-buttons {
+  display: flex;
+  justify-content: center; /* centers horizontally */
+  align-items: center;     /* vertically aligns buttons */
+  gap: 1rem;               /* space between buttons */
+  margin-top: 1rem;        /* some breathing room below timer */
+}

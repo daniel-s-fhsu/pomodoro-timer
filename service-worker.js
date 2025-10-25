@@ -1,4 +1,4 @@
-const CACHE_NAME = "pomodoro-cache-v1";
+const CACHE_NAME = "pomodoro-cache-v3";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
@@ -8,7 +8,9 @@ const ASSETS_TO_CACHE = [
 //.  When the program code is created, cache this too
 //   "/assets/javascript/app.js",
   "/assets/icons/icon-192.png",
-  "/assets/icons/icon-512.png"
+  "/assets/icons/icon-512.png",
+  "/assets/javascript/dark-mode.js",
+  "/assets/css/app.css"
 ];
 
 self.addEventListener("install", event => {
@@ -17,7 +19,16 @@ self.addEventListener("install", event => {
   );
 });
 
-self.addEventListener()
+self.addEventListener('activate', event => {
+  const keep = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(k => !keep.includes(k)).map(k => caches.delete(k))
+    ))
+  );
+  self.clients.claim();
+});
+
 
 self.addEventListener("fetch", event => {
   event.respondWith(
