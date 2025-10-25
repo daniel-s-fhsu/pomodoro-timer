@@ -5,12 +5,11 @@ const ASSETS_TO_CACHE = [
   "/assets/css/materialize.min.css",
   "/assets/javascript/materialize.min.js",
   "/assets/javascript/ui.js",
-//.  When the program code is created, cache this too
-//   "/assets/javascript/app.js",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
   "/assets/javascript/dark-mode.js",
-  "/assets/css/app.css"
+  "/assets/css/app.css",
+  "/assets/javascript/timer.js",
 ];
 
 self.addEventListener("install", event => {

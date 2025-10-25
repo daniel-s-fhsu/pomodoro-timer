@@ -1,7 +1,7 @@
 {
   "name": "Pomodoro Timer",
   "short_name": "Pomodoro",
-  "start_url": ".",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#d32f2f",
