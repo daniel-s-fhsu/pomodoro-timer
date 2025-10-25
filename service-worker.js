@@ -2,6 +2,7 @@ const CACHE_NAME = "pomodoro-cache-v3";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
+  "stats.html",
   "/assets/css/materialize.min.css",
   "/assets/javascript/materialize.min.js",
   "/assets/javascript/ui.js",
