@@ -8,3 +8,13 @@ It should run when published.  To run in a dev environment, make sure node is in
 "npx serv ."
 from inside the application directory.
 
+To install on a phone (running on LAN), run this command (starts HTTPS server):
+"npx http-server -S -C localhost+2.pem -K localhost+2-key.pem ."
+
+Service Worker and Caching Strategy
+File: service-worker.js
+On install, the service worker pre-caches the essential files.
+On fetch, it serves cached responses first in order to allow offline use.
+On activation, it removes outdated cache versions to prevent stale data.
+
+The manifest is manifest.json.  Contains display names and icon definitions.
