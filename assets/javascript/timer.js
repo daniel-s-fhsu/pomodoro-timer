@@ -1,3 +1,5 @@
+import app from 'firebase-config';
+
 // config
 const DEFAULT_FOCUS_MIN = 25;
 const DEFAULT_BREAK_MIN = 5;
@@ -237,10 +239,8 @@ function wireShortcuts() {
 
 // Init UI
 document.addEventListener('DOMContentLoaded', () => {
-  // Ensure Materialize sidenav etc. don’t interfere; no-op if M absent
-  if (window.M && M.AutoInit) { /* optional: M.AutoInit(); */ }
+  if (window.M && M.AutoInit) {  }
 
-  // Initial UI
   setStatusText();
   setTimeDisplay(getDurationMs(phase));
 

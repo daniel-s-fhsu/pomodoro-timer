@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "firebase": "^12.5.0",
+    "idb": "^8.0.3"
+  }
+}

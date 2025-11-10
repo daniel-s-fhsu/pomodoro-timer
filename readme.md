@@ -18,3 +18,12 @@ On fetch, it serves cached responses first in order to allow offline use.
 On activation, it removes outdated cache versions to prevent stale data.
 
 The manifest is manifest.json.  Contains display names and icon definitions.
+
+Data stored as the following json object:
+[
+{
+    "date": date,
+    "minutes": int,
+    "subject": string
+}
+]
