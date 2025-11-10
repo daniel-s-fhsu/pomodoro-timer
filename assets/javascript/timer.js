@@ -43,7 +43,7 @@ function logFocusSession(durationMs, endedAt = new Date()) {
     minutes: Math.round(durationMs / 60000),
     subject: getSubject(),
   });
-  // (optional) cap history
+  // cap history
   if (sessions.length > 1000) sessions.shift();
   saveSessions(sessions);
 }
@@ -122,7 +122,7 @@ function tick() {
 
   // logging
   if (phase === 'focus') {
-    // Use planned duration; or compute actual: Date.now() - (endAt - base)
+    // Use planned duration or compute actual: Date.now() - (endAt - base)
     logFocusSession(getDurationMs('focus'), new Date());
   }
 
