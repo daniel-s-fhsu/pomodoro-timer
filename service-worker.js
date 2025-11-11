@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
   "/assets/javascript/dark-mode.js",
   "/assets/css/app.css",
   "/assets/javascript/timer.js",
+  "/assets/javascript/db-implementation.js",
 ];
 
 self.addEventListener("install", event => {

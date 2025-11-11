@@ -37,7 +37,7 @@
       <thead>
         <tr>
           <th>Date</th>
-          <th>Subject</th>
+          <th>Subject (click to change)</th>
           <th>Duration</th>
         </tr>
       </thead>
@@ -45,6 +45,20 @@
         <tr><td colspan="3">No sessions found.</td></tr>
       </tbody>
     </table>
+
+    <div id="edit-form-wrapper" class="card-panel" style="display: none; margin-top: 2rem;">
+      <form id="subject-edit-form">
+        <input type="hidden" id="edit-stat-id">
+        <div class="input-field">
+          <input id="edit-subject" type="text" maxlength="40" required />
+          <label for="edit-subject">Edit subject</label>
+        </div>
+        <div class="right-align">
+          <button type="submit" class="btn red">Save</button>
+          <button type="button" id="cancel-edit" class="btn-flat">Cancel</button>
+        </div>
+      </form>
+    </div>
 
     <div class="right-align" style="margin-top: 1em;">
       <a id="clear-stats" class="btn-flat"><i class="material-icons left">delete</i>Clear</a>
@@ -55,60 +69,132 @@
   <script src="assets/javascript/ui.js"></script>
   <script src="assets/javascript/dark-mode.js"></script>
 
-  <script>
-    const SESSIONS_KEY = 'pomodoroSessions';
+  <script type="module">
+    import { loadStatBlocks, deleteStatBlock, updateStatBlock } from "./assets/javascript/db-implementation.js";
 
-    function loadSessions() {
-      try {
-        return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || [];
-      } catch {
-        return [];
-      }
-    }
+    const tbody = document.getElementById('sessions-body');
+    const clearBtn = document.getElementById('clear-stats');
+    const editWrapper = document.getElementById('edit-form-wrapper');
+    const editForm = document.getElementById('subject-edit-form');
+    const editSubjectInput = document.getElementById('edit-subject');
+    const editStatIdInput = document.getElementById('edit-stat-id');
+    const cancelEditBtn = document.getElementById('cancel-edit');
+
+    let currentStats = [];
 
     function renderSessions() {
-      const tbody = document.getElementById('sessions-body');
-      const sessions = loadSessions();
-
       tbody.innerHTML = '';
 
-      if (!sessions.length) {
-        tbody.innerHTML = '<tr><td colspan="3">No sessions found.</td></tr>';
+      if (!currentStats.length) {
+        const emptyRow = document.createElement('tr');
+        const emptyCell = document.createElement('td');
+        emptyCell.colSpan = 3;
+        emptyCell.textContent = 'No sessions found.';
+        emptyRow.appendChild(emptyCell);
+        tbody.appendChild(emptyRow);
         return;
       }
 
-      // newest first
-      sessions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      sessions.forEach(s => {
+      currentStats.forEach((s) => {
         const tr = document.createElement('tr');
-        const d = new Date(s.date);
-        const dateStr = d.toLocaleString();
-        tr.innerHTML = `
-          <td>${dateStr}</td>
-          <td>${(s.subject || 'Unlabeled').replace(/</g, '&lt;')}</td>
-          <td>${s.minutes} min</td>
-        `;
+        const dateTd = document.createElement('td');
+        dateTd.textContent = s.date ? new Date(s.date).toLocaleString() : 'Unknown';
+
+        const subjectTd = document.createElement('td');
+        subjectTd.classList.add('subject-cell');
+        subjectTd.dataset.id = String(s.id);
+        subjectTd.textContent = s.subject || 'Unlabeled';
+
+        const durationTd = document.createElement('td');
+        durationTd.textContent = `${s.minutes ?? 0} min`;
+
+        tr.append(dateTd, subjectTd, durationTd);
         tbody.appendChild(tr);
       });
     }
 
-    function wireClearButton() {
-      const btn = document.getElementById('clear-stats');
-      btn.addEventListener('click', e => {
-        e.preventDefault();
-        if (confirm('Clear all saved sessions?')) {
-          localStorage.removeItem(SESSIONS_KEY);
-          renderSessions();
-          if (window.M && M.toast) M.toast({ html: 'Sessions cleared' });
-        }
-      });
+    async function refreshSessions() {
+      try {
+        currentStats = await loadStatBlocks();
+        currentStats.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      } catch (err) {
+        console.error('Unable to load stats:', err);
+        currentStats = [];
+      }
+      renderSessions();
     }
+
+    function showEditForm(stat) {
+      editStatIdInput.value = String(stat.id);
+      editSubjectInput.value = stat.subject || 'Unlabeled';
+      editWrapper.style.display = 'block';
+      if (window.M && M.updateTextFields) {
+        M.updateTextFields();
+      }
+    }
+
+    function hideEditForm() {
+      editStatIdInput.value = '';
+      editSubjectInput.value = '';
+      editWrapper.style.display = 'none';
+    }
+
+    tbody.addEventListener('click', (event) => {
+      const subjectCell = event.target.closest('.subject-cell');
+      if (!subjectCell) return;
+
+      const statId = subjectCell.dataset.id;
+      const stat = currentStats.find((s) => String(s.id) === statId);
+      if (stat) {
+        showEditForm(stat);
+      }
+    });
+
+    editForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const statId = editStatIdInput.value;
+      const newSubject = editSubjectInput.value.trim() || 'Unlabeled';
+      if (!statId) return;
+
+      const stat = currentStats.find((s) => String(s.id) === statId);
+      if (!stat) return;
+
+      const updatedData = { ...stat, subject: newSubject };
+
+      try {
+        await updateStatBlock(stat.id, updatedData);
+        if (window.M && M.toast) M.toast({ html: 'Subject updated' });
+      } catch (err) {
+        console.error('Failed to update subject:', err);
+      } finally {
+        hideEditForm();
+        await refreshSessions();
+      }
+    });
+
+    cancelEditBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      hideEditForm();
+    });
+
+    clearBtn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      if (!confirm('Clear all saved sessions?')) return;
+
+      try {
+        await Promise.all(currentStats.map((stat) => deleteStatBlock(stat.id)));
+        if (window.M && M.toast) M.toast({ html: 'Sessions cleared' });
+      } catch (err) {
+        console.error('Unable to clear stats:', err);
+      } finally {
+        hideEditForm();
+        await refreshSessions();
+      }
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
       if (window.M && M.Sidenav) M.Sidenav.init(document.querySelectorAll('.sidenav'));
-      renderSessions();
-      wireClearButton();
+      refreshSessions();
     });
   </script>
 </body>

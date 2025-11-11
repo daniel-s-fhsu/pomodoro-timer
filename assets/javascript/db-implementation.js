@@ -1,4 +1,5 @@
-import { openDB } from "idb"
+import { openDB } from "https://cdn.jsdelivr.net/npm/idb@8.0.3/+esm"
+import { addStatToFirebase, deleteStatFromFirebase, getStatsFromFirebase, updateStatFirebase } from "./firebaseDB.js";
 
 // Create indexedDb
 async function createDB(params) {
@@ -14,52 +15,9 @@ async function createDB(params) {
     return db;
 }
 
-// add document
-async function addDbDoc(statEntry) {
-    const db = await createDB();
-    const tx = db.transaction("stats", "readwrite");
-    const store = tx.objectStore("stats");
 
-    await store.add(statEntry);
 
-    // complete trans
-    await tx.done;
 
-    // update storage
-    checkStorageUsage();
-}
-
-//delete document
-async function deleteDbDoc(id) {
-    const db = await createDB();
-
-    const tx = db.transaction("stats", "readwrite");
-    const store = tx.objectStore("stats");
-
-    //delete by id
-    await store.delete(id);
-
-    await tx.done;
-
-    // TODO: does the interface need to be refreshed?  Probably not...
-
-    checkStorageUsage();
-}
-
-// load documents
-async function loadDbDocs() {
-    const db = await createDB();
-
-    const tx = db.transaction("stats", "readonly");
-    const store = tx.objectStore("stats");
-
-    // Get all docs
-    const docs = await store.getAll();
-
-    await tx.done;
-
-    return docs;
-}
 
 // make sure storage isn't full
 async function checkStorageUsage() {
@@ -73,4 +31,154 @@ async function checkStorageUsage() {
     }
 }
 
-export {addDbDoc, deleteDbDoc, loadDbDocs}
+// ---- exported functions to manipulate stat block ----
+// Everything below here are essentially public functions to use in timer.js
+export async function addStatBlock(statBlock) {
+    const db = await createDB();
+    let statId;
+
+    if (navigator.onLine) {
+        const saveTask = await addStatToFirebase(statBlock);
+        statId = saveTask.id;
+        const tx = db.transaction("stats", "readwrite");
+        const store = tx.objectStore("stats");
+        await store.put({ ...statBlock, id: statId, synced:true });
+        await tx.done;
+    } else {
+        // offline - save locally and mark as not synced
+        statId = `temp-${Date.now()}`;
+        const statToStore = {...statBlock, id: statId, synced: false };
+        if (!statToStore.id) {
+            console.error("Stat block must have an id before storing locally.");
+            return;
+        }
+        const tx = db.transaction("stats", "readwrite");
+        const store = tx.objectStore("stats");
+        statId = await store.add(statToStore);
+        await tx.done;
+    }
+    await checkStorageUsage();
+    return { ...statBlock, id: statId };
+}
+
+//delete document
+export async function deleteStatBlock(id) {
+    if(!id) {
+        console.error("No ID provided for deletion.");
+        return;
+    }
+    const db = await createDB();
+
+    if(navigator.onLine) {
+        await deleteStatFromFirebase(id);
+    }
+
+    const tx = db.transaction("stats", "readwrite");
+    const store = tx.objectStore("stats");
+
+    try {
+    //delete by id
+        await store.delete(id);
+    } catch(e) {
+        console.error("Error deleting stat block: ", e);
+    }
+
+    await tx.done;
+
+    // TODO: does the interface need to be refreshed?  Probably not...
+
+    await checkStorageUsage();
+}
+
+
+export async function syncStats() {
+    const db = await createDB();
+    const tx = db.transaction("stats", "readwrite");
+    const store = tx.objectStore("stats");
+
+    const blocks = await store.getAll();
+    await tx.done;
+
+    for (const block of blocks) {
+        if (!block.synced && navigator.onLine) {
+            try {
+                const blockToSync = {
+                    date: block.date,
+                    minutes: block.minutes,
+                    subject: block.subject,
+                };
+
+
+                // send to firebase
+                const savedBlock = await addStatToFirebase(blockToSync);
+
+                const txUpdate = db.transaction("stats", "readwrite");
+                const storeUpdate = txUpdate.objectStore("stats");
+
+                await storeUpdate.delete(block.id);
+                await storeUpdate.put({...block, id: savedBlock.id, synced: true });
+                await txUpdate.done;
+            } catch (e) {
+                console.error("Error syncing stat block:", e);
+            }
+        }
+    }
+}
+
+// load documents
+export async function loadStatBlocks() {
+    const db = await createDB();
+    if (navigator.onLine) {
+        // First push any local unsynced stats up
+        await syncStats();
+        // Then pull list from Firebase and refresh local cache
+        const firebaseStats = await getStatsFromFirebase();
+        const txWrite = db.transaction("stats", "readwrite");
+        const storeWrite = txWrite.objectStore("stats");
+        await storeWrite.clear();
+        for (const stat of firebaseStats) {
+            await storeWrite.put({ ...stat, synced: true });
+        }
+        await txWrite.done;
+    }
+    // Always return the latest local cache so offline works
+    const txRead = db.transaction("stats", "readonly");
+    const storeRead = txRead.objectStore("stats");
+    const localStats = await storeRead.getAll();
+    await txRead.done;
+    return localStats;
+}
+
+
+
+// edit stat block
+export async function updateStatBlock(id, updatedData) {
+    if (!id) {
+        console.error("No ID provided for update.");
+        return;
+    }
+
+    const db = await createDB();
+    if (navigator.onLine) {
+        try {
+            //online
+            await updateStatFirebase(id, updatedData);
+            const tx = db.transaction("stats", "readwrite");
+            const store = tx.objectStore("stats");
+            await store.put({ ...updatedData, id: id, synced: true });
+            await tx.done;
+        } catch (e) {
+            console.error("Error updating stat block in Firebase:", e);
+        }
+    } else {
+        //offline - update locally and mark as not synced
+        try {
+            const tx = db.transaction("stats", "readwrite");
+            const store = tx.objectStore("stats");
+            await store.put({ ...updatedData, id: id, synced: false });
+            await tx.done;
+        } catch (e) {
+            console.error("Error updating stat block locally:", e);
+        }
+    }
+}

@@ -35,7 +35,7 @@ export async function getStatsFromFirebase() {
   try {
     const querySnapshot = await getDocs(collection(db, "stats"));
     querySnapshot.forEach((doc) => {
-      tasks.push({id: doc.id, ...doc.data() });
+      stats.push({id: doc.id, ...doc.data() });
     });
   } catch(e) {
     console.error("Error retreiving stats: ", e)
@@ -43,18 +43,19 @@ export async function getStatsFromFirebase() {
   return stats;
 }
 
-export async function deleteStat(id) {
+export async function deleteStatFromFirebase(id) {
   try {
-    await deleteDoc(db, "stats", id);
+    const statsRef = doc(db, "stats", id);
+    await deleteDoc(statsRef);
   } catch(e) {
     console.error("Error deleting stat block: ", e);
   }
 }
 
-export async function updateStat(id, updatedData) {
+export async function updateStatFirebase(id, updatedData) {
   try {
-    const taskRef = doc(db, "stats", id);
-    await updateDoc(taskRef, updatedData);
+    const statsRef = doc(db, "stats", id);
+    await updateDoc(statsRef, updatedData);
   } catch(e) {
     console.error("Error updating stat block: ", e);
   }

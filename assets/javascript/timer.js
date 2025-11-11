@@ -1,4 +1,4 @@
-import app from 'firebase-config';
+import { addStatBlock } from "./db-implementation.js";
 
 // config
 const DEFAULT_FOCUS_MIN = 25;
@@ -17,35 +17,24 @@ const timeEl = document.querySelector('#time-left');
 // Buttons: assumes 3 in #timer-buttons in order: play, pause, reset
 const [playBtn, pauseBtn, resetBtn] = document.querySelectorAll('#timer-buttons a');
 
-//session logging functions
-const SESSIONS_KEY = 'pomodoroSessions';
-
 function getSubject() {
   const el = document.querySelector('#user-activity');
   const v = (el && el.value || '').trim();
   return v || 'Unlabeled';
 }
 
-function loadSessions() {
-  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; }
-  catch { return []; }
-}
-
-function saveSessions(arr) {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(arr));
-}
-
 // durationMs: number, endedAt: Date
-function logFocusSession(durationMs, endedAt = new Date()) {
-  const sessions = loadSessions();
-  sessions.push({
+async function logFocusSession(durationMs, endedAt = new Date()) {
+  const statBlock = {
     date: endedAt.toISOString(),
     minutes: Math.round(durationMs / 60000),
     subject: getSubject(),
-  });
-  // cap history
-  if (sessions.length > 1000) sessions.shift();
-  saveSessions(sessions);
+  };
+  try {
+    await addStatBlock(statBlock);
+  } catch (err) {
+    console.error("Unable to log focus session:", err);
+  }
 }
 
 // utility functions
@@ -86,7 +75,6 @@ async function notify(title, body) {
   try {
     const ok = await ensureNotificationPermission();
     if (!ok) return;
-    // Prefer SW notification if available (better on mobile / when tab is bg)
     if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg && reg.showNotification) {
@@ -109,33 +97,31 @@ async function notify(title, body) {
 // timer functions
 let intervalId = null;
 
-function tick() {
+async function tick() {
   const now = Date.now();
   const msLeft = endAt - now;
 
   if (msLeft <= 0) {
-  clearInterval(intervalId);
-  intervalId = null;
-  running = false;
-  setTimeDisplay(0);
-  setStatusText();
+    clearInterval(intervalId);
+    intervalId = null;
+    running = false;
+    setTimeDisplay(0);
+    setStatusText();
 
-  // logging
-  if (phase === 'focus') {
-    // Use planned duration or compute actual: Date.now() - (endAt - base)
-    logFocusSession(getDurationMs('focus'), new Date());
-  }
+    // logging
+    if (phase === 'focus') {
+      // Use planned duration or compute actual: Date.now() - (endAt - base)
+      await logFocusSession(getDurationMs('focus'), new Date());
+    }
 
-  (async () => {
     const nextPhase = phase === 'focus' ? 'break' : 'focus';
     await notify(
       `${phase === 'focus' ? 'Focus' : 'Break'} complete`,
       `Starting ${nextPhase} session`
     );
     switchPhase(nextPhase, AUTO_START_NEXT_SESSION);
-  })();
-  return;
-}
+    return;
+  }
 
   setTimeDisplay(msLeft);
 }
@@ -159,24 +145,24 @@ function pauseTimer() {
   setStatusText();
 }
 // PWA won't run continued timers in background; i compromised here by saving end time to localStorage
-document.addEventListener('visibilitychange', () => {
+document.addEventListener('visibilitychange', async () => {
   if (!document.hidden) {
     const savedEnd = +localStorage.getItem('pomodoroEnd');
     if (!savedEnd) return;
 
     // If session already ended while app was backgrounded
     if (Date.now() >= savedEnd) {
-    if (phase === 'focus') {
-        logFocusSession(getDurationMs('focus'), new Date(savedEnd));
-    }
-    notify('Focus complete', 'Time to take a break!');
-    switchPhase('break', true);
-    localStorage.removeItem('pomodoroEnd');
+      if (phase === 'focus') {
+        await logFocusSession(getDurationMs('focus'), new Date(savedEnd));
+      }
+      await notify('Focus complete', 'Time to take a break!');
+      switchPhase('break', true);
+      localStorage.removeItem('pomodoroEnd');
     } else {
-    // Still ongoing…
-    const remaining = savedEnd - Date.now();
-    setTimeDisplay(remaining);
-    if (!running) remainingMs = remaining;
+      // Still ongoing...
+      const remaining = savedEnd - Date.now();
+      setTimeDisplay(remaining);
+      if (!running) remainingMs = remaining;
     }
 
   }
