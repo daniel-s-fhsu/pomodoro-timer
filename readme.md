@@ -27,3 +27,12 @@ Data stored as the following json object:
     "subject": string
 }
 ]
+
+CRUD usage
+The timer UI calls `addStatBlock`, `updateStatBlock`, `deleteStatBlock`, and `loadStatBlocks` from `assets/javascript/db-implementation.js`. These helpers always write to IndexedDB first so the app keeps working offline.
+When online, each helper also forwards the change to Firebase (`addStatToFirebase`, `updateStatFirebase`, `deleteStatFromFirebase`) and marks the local record as `synced:true`. When offline, records are stored locally with a temporary id and `synced:false`; the return values remain usable immediately.
+The stats page reads exclusively through `loadStatBlocks`, which always pulls the latest IndexedDB snapshot so cached data renders even without a network connection.
+
+Sync behavior
+`syncStats()` runs whenever stats are loaded online. It finds any `synced:false` records, uploads them to Firebase, and then swaps the temporary id with the permanent Firebase document id so future updates/deletes reference the right record.
+After sync completes, `loadStatBlocks` clears the local store and repopulates it with the current Firebase data, ensuring IDs stay aligned between the remote database and the offline cache.
