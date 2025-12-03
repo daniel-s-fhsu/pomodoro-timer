@@ -8,6 +8,12 @@ import {  getFirestore,
           doc,
  } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js"
 
+ import { getAuth,
+          createUserWithEmailAndPassword,
+          signInWithEmailAndPassword,
+          signOut
+  } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyBFw3T4YNqodDSmarwgTuXwcZSa24RGWf4",
   authDomain: "pomodoro-timer-e9801.firebaseapp.com",
@@ -20,6 +26,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 export async function addStatToFirebase(stat) {
   try {
@@ -59,4 +66,23 @@ export async function updateStatFirebase(id, updatedData) {
   } catch(e) {
     console.error("Error updating stat block: ", e);
   }
+}
+
+export async function createUser(email, password) {
+  let newUser = null;
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    newUser = userCredential.user;
+  } catch (e) {
+    console.error("Error creating user");
+  }
+  return newUser;
+}
+
+export function login (email,password) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+export function logout () {
+  return signOut(auth);
 }
