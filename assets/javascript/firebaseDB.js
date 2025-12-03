@@ -6,12 +6,15 @@ import {  getFirestore,
           deleteDoc,
           updateDoc,
           doc,
+          query,
+          where
  } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js"
 
- import { getAuth,
+import { getAuth,
           createUserWithEmailAndPassword,
           signInWithEmailAndPassword,
-          signOut
+          signOut,
+          onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -29,6 +32,9 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 export async function addStatToFirebase(stat) {
+  if (!stat?.userId) {
+    throw new Error("Cannot save stat without a user ID.");
+  }
   try {
     const docRef = await addDoc(collection(db, "stats"), stat);
     return { id: docRef.id, ...stat};
@@ -37,10 +43,15 @@ export async function addStatToFirebase(stat) {
   }
 }
 
-export async function getStatsFromFirebase() {
+export async function getStatsFromFirebase(userId) {
+  if (!userId) return [];
   const stats = [];
   try {
-    const querySnapshot = await getDocs(collection(db, "stats"));
+    const statsQuery = query(
+      collection(db, "stats"),
+      where("userId", "==", userId)
+    );
+    const querySnapshot = await getDocs(statsQuery);
     querySnapshot.forEach((doc) => {
       stats.push({id: doc.id, ...doc.data() });
     });
@@ -69,20 +80,33 @@ export async function updateStatFirebase(id, updatedData) {
 }
 
 export async function createUser(email, password) {
-  let newUser = null;
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    newUser = userCredential.user;
+    return userCredential.user;
   } catch (e) {
-    console.error("Error creating user");
+    console.error("Error creating user", e);
+    throw e;
   }
-  return newUser;
 }
 
-export function login (email,password) {
-  return signInWithEmailAndPassword(auth, email, password);
+export async function login (email,password) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (e) {
+    console.error("Error logging in", e);
+    throw e;
+  }
 }
 
 export function logout () {
   return signOut(auth);
+}
+
+export function onAuthChange(callback) {
+  return onAuthStateChanged(auth, callback);
+}
+
+export function getCurrentUser() {
+  return auth.currentUser;
 }

@@ -21,6 +21,9 @@
         <li><a href="index.html">Timer</a></li>
         <li><a href="stats.html">Statistics</a></li>
         <li><a href="#" class="btn-switch-theme"><i class="material-icons">dark_mode</i></a></li>
+        <li class="nav-user-email" style="display:none;"><span data-auth-email></span></li>
+        <li style="display:none;"><a href="#" data-auth-logout-link>Logout</a></li>
+        <li><a href="login.html" data-auth-login-link>Login</a></li>
       </ul>
     </div>
   </nav>
@@ -29,48 +32,60 @@
     <li><a href="index.html">Timer</a></li>
     <li><a href="stats.html">Statistics</a></li>
     <li><a href="#" class="btn-switch-theme sidenav-close"><span>Dark Mode Toggle</span></a></li>
+    <li class="nav-user-email" style="display:none;"><span data-auth-email></span></li>
+    <li style="display:none;"><a href="#" class="sidenav-close" data-auth-logout-link>Logout</a></li>
+    <li><a href="login.html" class="sidenav-close" data-auth-login-link>Login</a></li>
   </ul>
 
   <div id="stats-div" class="container">
     <h5 class="center-align">Focus Sessions</h5>
-    <table class="striped centered">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Subject (click to change)</th>
-          <th>Duration</th>
-        </tr>
-      </thead>
-      <tbody id="sessions-body">
-        <tr><td colspan="3">No sessions found.</td></tr>
-      </tbody>
-    </table>
 
-    <div id="edit-form-wrapper" class="card-panel" style="display: none; margin-top: 2rem;">
-      <form id="subject-edit-form">
-        <input type="hidden" id="edit-stat-id">
-        <div class="input-field">
-          <input id="edit-subject" type="text" maxlength="40" required />
-          <label for="edit-subject">Edit subject</label>
-        </div>
-        <div class="right-align">
-          <button type="submit" class="btn red">Save</button>
-          <button type="button" id="cancel-edit" class="btn-flat">Cancel</button>
-        </div>
-      </form>
+    <div id="stats-auth-message" class="card-panel red lighten-5" style="display: none;">
+      <span>Please log in to view your statistics.</span>
     </div>
 
-    <div class="right-align" style="margin-top: 1em;">
-      <a id="clear-stats" class="btn-flat"><i class="material-icons left">delete</i>Clear</a>
+    <div id="stats-content" style="display: none;">
+      <table class="striped centered">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Subject (click to change)</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody id="sessions-body">
+          <tr><td colspan="3">No sessions found.</td></tr>
+        </tbody>
+      </table>
+
+      <div id="edit-form-wrapper" class="card-panel" style="display: none; margin-top: 2rem;">
+        <form id="subject-edit-form">
+          <input type="hidden" id="edit-stat-id">
+          <div class="input-field">
+            <input id="edit-subject" type="text" maxlength="40" required />
+            <label for="edit-subject">Edit subject</label>
+          </div>
+          <div class="right-align">
+            <button type="submit" class="btn red">Save</button>
+            <button type="button" id="cancel-edit" class="btn-flat">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="right-align" style="margin-top: 1em;">
+        <a id="clear-stats" class="btn-flat disabled"><i class="material-icons left">delete</i>Clear</a>
+      </div>
     </div>
   </div>
 
   <script src="assets/javascript/materialize.min.js"></script>
   <script src="assets/javascript/ui.js"></script>
   <script src="assets/javascript/dark-mode.js"></script>
+  <script type="module" src="./assets/javascript/auth-ui.js"></script>
 
   <script type="module">
     import { loadStatBlocks, deleteStatBlock, updateStatBlock } from "./assets/javascript/db-implementation.js";
+    import { onAuthChange } from "./assets/javascript/firebaseDB.js";
 
     const tbody = document.getElementById('sessions-body');
     const clearBtn = document.getElementById('clear-stats');
@@ -79,8 +94,11 @@
     const editSubjectInput = document.getElementById('edit-subject');
     const editStatIdInput = document.getElementById('edit-stat-id');
     const cancelEditBtn = document.getElementById('cancel-edit');
+    const authMessageBox = document.getElementById('stats-auth-message');
+    const statsContent = document.getElementById('stats-content');
 
     let currentStats = [];
+    let activeUser = null;
 
     function renderSessions() {
       tbody.innerHTML = '';
@@ -114,6 +132,11 @@
     }
 
     async function refreshSessions() {
+      if (!activeUser) {
+        currentStats = [];
+        renderSessions();
+        return;
+      }
       try {
         currentStats = await loadStatBlocks();
         currentStats.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
@@ -179,6 +202,7 @@
 
     clearBtn.addEventListener('click', async (event) => {
       event.preventDefault();
+      if (!activeUser || clearBtn.classList.contains('disabled')) return;
       if (!confirm('Clear all saved sessions?')) return;
 
       try {
@@ -194,7 +218,25 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       if (window.M && M.Sidenav) M.Sidenav.init(document.querySelectorAll('.sidenav'));
-      refreshSessions();
+    });
+
+    function setAuthUi(user) {
+      activeUser = user;
+      const isAuthed = Boolean(user);
+      if (statsContent) statsContent.style.display = isAuthed ? 'block' : 'none';
+      if (authMessageBox) authMessageBox.style.display = isAuthed ? 'none' : 'block';
+      if (clearBtn) clearBtn.classList.toggle('disabled', !isAuthed);
+      if (!isAuthed) {
+        hideEditForm();
+        currentStats = [];
+        renderSessions();
+      } else {
+        refreshSessions();
+      }
+    }
+
+    onAuthChange((user) => {
+      setAuthUi(user);
     });
   </script>
 </body>
