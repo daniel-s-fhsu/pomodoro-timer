@@ -26,6 +26,7 @@
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+  margin-top: 1rem;
 }
 
 .auth-message {
@@ -62,4 +63,8 @@
 #stats-auth-message span {
   color: #8d0000;
   font-weight: 500;
+}
+
+#subject-edit-form .right-align {
+  margin-top: 1rem;
 }

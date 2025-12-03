@@ -57,3 +57,10 @@ onAuthChange((user) => {
     el.style.display = user ? "none" : "";
   });
 });
+
+function flushPendingToast() {
+  const pending = sessionStorage.getItem(TOAST_KEY);
+  if (!pending) return;
+  sessionStorage.removeItem(TOAST_KEY);
+  showToast(pending);
+}

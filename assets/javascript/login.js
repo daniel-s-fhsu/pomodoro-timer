@@ -55,8 +55,8 @@ async function handleLogin(event) {
   setPending(true);
   try {
     await login(email, password);
-    setAuthMessage(`Logged in as ${email}.`);
     authForm?.reset();
+    window.location.href = "index.html";
   } catch (err) {
     const msg = err?.message || "Unable to log in.";
     setAuthMessage(msg, true);
@@ -116,7 +116,4 @@ if (logoutBtn) {
 
 onAuthChange((user) => {
   setUserDetails(user);
-  if (user) {
-    setAuthMessage(`Logged in as ${user.email}.`);
-  }
 });

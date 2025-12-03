@@ -1,17 +1,23 @@
-const CACHE_NAME = "pomodoro-cache-v3";
+const CACHE_NAME = "pomodoro-cache-v4";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
-  "stats.html",
+  "/stats.html",
+  "/login.html",
+  "/app.js",
+  "/manifest.json",
   "/assets/css/materialize.min.css",
-  "/assets/javascript/materialize.min.js",
-  "/assets/javascript/ui.js",
+  "/assets/css/app.css",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
+  "/assets/javascript/materialize.min.js",
+  "/assets/javascript/ui.js",
   "/assets/javascript/dark-mode.js",
-  "/assets/css/app.css",
   "/assets/javascript/timer.js",
   "/assets/javascript/db-implementation.js",
+  "/assets/javascript/firebaseDB.js",
+  "/assets/javascript/auth-ui.js",
+  "/assets/javascript/login.js"
 ];
 
 self.addEventListener("install", event => {
