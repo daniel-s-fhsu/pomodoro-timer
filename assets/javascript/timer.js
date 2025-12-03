@@ -202,7 +202,7 @@ function wireButtons() {
   if (pauseBtn) {
     pauseBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      if (running) pauseTimer(); else startTimer();
+      pauseTimer();
     });
   }
   if (resetBtn) {
